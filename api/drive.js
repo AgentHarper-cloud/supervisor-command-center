@@ -2,9 +2,11 @@
  * /api/drive — Create a Google Doc in the APO folder via Drive API v3.
  *
  * Required env vars:
- *   GOOGLE_SERVICE_ACCOUNT_KEY  — full JSON string of the service account credentials
- *   APO_FOLDER_ID               — Google Drive folder ID for the APO folder
- *                                  (share this folder with the service account email)
+ *   GOOGLE_CLIENT_ID      — OAuth 2.0 client ID
+ *   GOOGLE_CLIENT_SECRET  — OAuth 2.0 client secret
+ *   GOOGLE_REFRESH_TOKEN  — long-lived refresh token (user's own Drive — no sharing needed)
+ *   APO_FOLDER_ID         — Google Drive folder ID for the APO folder (optional;
+ *                           defaults to the known APO folder created 2026-04-24)
  *
  * POST body: { title: string, content: string, folderId?: string }
  * Response:  { success: true, title, link, fileId }
@@ -15,6 +17,9 @@ const SCOPES = [
   'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/documents'
 ];
+
+// Known APO folder ID (created 2026-04-24 in Stephanie's Google Drive)
+const DEFAULT_APO_FOLDER_ID = '1P-vYMRPUGXXGQH-yAyZvRnCuFbUbAtz0';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -30,8 +35,8 @@ export default async function handler(req, res) {
   try {
     const token = await getGoogleAccessToken(SCOPES);
 
-    // Resolve folder: explicit arg → env var → create APO folder in SA drive
-    let apoFolderId = folderId || process.env.APO_FOLDER_ID || null;
+    // Resolve folder: explicit arg → env var → known default → search/create
+    let apoFolderId = folderId || process.env.APO_FOLDER_ID || DEFAULT_APO_FOLDER_ID;
     if (!apoFolderId) {
       apoFolderId = await findOrCreateApoFolder(token);
     }

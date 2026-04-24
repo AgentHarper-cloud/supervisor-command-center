@@ -2,10 +2,12 @@
  * /api/calendar — Create a Google Calendar event via Calendar API v3.
  *
  * Required env vars:
- *   GOOGLE_SERVICE_ACCOUNT_KEY  — full JSON string of the service account credentials
- *   GOOGLE_CALENDAR_ID          — calendar to write to (e.g. stephanie@gmail.com)
- *                                  Share your calendar with the service account email:
- *                                  "Make changes to events" permission required.
+ *   GOOGLE_CLIENT_ID      — OAuth 2.0 client ID
+ *   GOOGLE_CLIENT_SECRET  — OAuth 2.0 client secret
+ *   GOOGLE_REFRESH_TOKEN  — long-lived refresh token (authenticated as Stephanie)
+ *
+ * No calendar sharing needed — the token IS Stephanie's account.
+ * Uses calendarId "primary" which resolves to her primary Google Calendar.
  *
  * POST body: { title: string, date?: string, description?: string }
  *   date: any parseable date string (e.g. "Tuesday, April 29, 2025")
@@ -34,7 +36,8 @@ export default async function handler(req, res) {
   try {
     const token = await getGoogleAccessToken(SCOPES);
 
-    // Resolve calendar ID — GOOGLE_CALENDAR_ID should be Stephanie's Gmail address
+    // "primary" resolves to the authenticated user's primary calendar.
+    // With OAuth2 refresh token auth, that IS Stephanie's calendar — no sharing needed.
     const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
     // Parse event date; default to next business day if blank/invalid

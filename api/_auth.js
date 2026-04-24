@@ -1,64 +1,54 @@
 /**
- * Google Service Account JWT auth helper.
- * Reads GOOGLE_SERVICE_ACCOUNT_KEY env var (JSON string),
- * builds a signed JWT, and exchanges it for a short-lived access token.
+ * Google OAuth2 access token helper.
  *
- * No external dependencies — uses Node.js built-in `crypto`.
+ * Primary method: refresh token (OAuth2 user auth via GOOGLE_REFRESH_TOKEN)
+ * This avoids service account JSON keys entirely — works even when
+ * iam.disableServiceAccountKeyCreation org policy is active.
+ *
+ * Required env vars:
+ *   GOOGLE_CLIENT_ID       — OAuth 2.0 client ID
+ *   GOOGLE_CLIENT_SECRET   — OAuth 2.0 client secret
+ *   GOOGLE_REFRESH_TOKEN   — long-lived refresh token from one-time auth flow
+ *
+ * Refresh tokens don't expire unless revoked. They give the app access
+ * to Stephanie's own Drive and Calendar without any folder-sharing setup.
  */
-import { createSign } from 'crypto';
 
 /**
- * @param {string[]} scopes - Google API scopes to request
- * @returns {Promise<string>} - OAuth2 access token
+ * Returns a short-lived access token by exchanging the stored refresh token.
+ * The `scopes` parameter is accepted for API compatibility but not used here —
+ * scopes were fixed at the time the refresh token was originally granted.
+ *
+ * @param {string[]} _scopes - ignored (scopes fixed at auth time)
+ * @returns {Promise<string>} OAuth2 access token
  */
-export async function getGoogleAccessToken(scopes) {
-  const keyJson = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!keyJson) throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY environment variable is not set');
+export async function getGoogleAccessToken(_scopes) {
+  const clientId     = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-  let key;
-  try {
-    key = JSON.parse(keyJson);
-  } catch {
-    throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON');
-  }
+  if (!clientId)     throw new Error('GOOGLE_CLIENT_ID environment variable is not set');
+  if (!clientSecret) throw new Error('GOOGLE_CLIENT_SECRET environment variable is not set');
+  if (!refreshToken) throw new Error('GOOGLE_REFRESH_TOKEN environment variable is not set');
 
-  if (!key.client_email || !key.private_key) {
-    throw new Error('Service account JSON is missing client_email or private_key');
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-
-  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({
-    iss: key.client_email,
-    scope: scopes.join(' '),
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600
-  })).toString('base64url');
-
-  const sigInput = `${header}.${payload}`;
-
-  const signer = createSign('RSA-SHA256');
-  signer.update(sigInput);
-  const signature = signer.sign(key.private_key, 'base64url');
-
-  const jwt = `${sigInput}.${signature}`;
-
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt
+      client_id:     clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type:    'refresh_token'
     })
   });
 
-  const tokenData = await tokenRes.json();
+  const data = await res.json();
 
-  if (!tokenData.access_token) {
-    throw new Error(`Token exchange failed: ${JSON.stringify(tokenData)}`);
+  if (!data.access_token) {
+    // Surface the exact Google error so it's actionable
+    const reason = data.error_description || data.error || JSON.stringify(data);
+    throw new Error(`Token refresh failed: ${reason}`);
   }
 
-  return tokenData.access_token;
+  return data.access_token;
 }
