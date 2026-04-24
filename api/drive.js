@@ -1,6 +1,20 @@
-const ZAPIER_TOKEN = process.env.ZAPIER_TOKEN;
-const ZAPIER_MCP_URL = 'https://mcp.zapier.com/api/v1/connect';
-const DEFAULT_FOLDER = '1P-vYMRPUGXXGQH-yAyZvRnCuFbUbAtz0';
+/**
+ * /api/drive — Create a Google Doc in the APO folder via Drive API v3.
+ *
+ * Required env vars:
+ *   GOOGLE_SERVICE_ACCOUNT_KEY  — full JSON string of the service account credentials
+ *   APO_FOLDER_ID               — Google Drive folder ID for the APO folder
+ *                                  (share this folder with the service account email)
+ *
+ * POST body: { title: string, content: string, folderId?: string }
+ * Response:  { success: true, title, link, fileId }
+ */
+import { getGoogleAccessToken } from './_auth.js';
+
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/documents'
+];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,70 +27,126 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required fields: title, content' });
   }
 
-  if (!ZAPIER_TOKEN) {
-    return res.status(500).json({ error: 'ZAPIER_TOKEN not configured on server' });
-  }
-
-  const folder = folderId || DEFAULT_FOLDER;
-
-  // Encode content as base64 for file upload
-  const base64Content = Buffer.from(content, 'utf8').toString('base64');
-  const fileDataUrl = `data:text/plain;base64,${base64Content}`;
-
   try {
-    const zapierRes = await fetch(ZAPIER_MCP_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ZAPIER_TOKEN}`
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        id: 1,
-        params: {
-          name: 'google_drive_upload_file',
-          arguments: {
-            instructions: `Upload this file to Google Drive and convert it to a Google Doc. Place it in folder ID: ${folder}. Name it: ${title}`,
-            file: fileDataUrl,
-            folder: folder,
-            new_name: title,
-            convert: true
-          }
-        }
-      })
-    });
+    const token = await getGoogleAccessToken(SCOPES);
 
-    if (!zapierRes.ok) {
-      const errText = await zapierRes.text().catch(() => '');
-      console.error('[api/drive] Zapier error:', zapierRes.status, errText);
-      return res.status(502).json({ error: `Zapier MCP error: ${zapierRes.status}`, details: errText });
+    // Resolve folder: explicit arg → env var → create APO folder in SA drive
+    let apoFolderId = folderId || process.env.APO_FOLDER_ID || null;
+    if (!apoFolderId) {
+      apoFolderId = await findOrCreateApoFolder(token);
     }
 
-    const zapierData = await zapierRes.json();
-    console.log('[api/drive] Zapier response:', JSON.stringify(zapierData));
+    // Handle duplicate filename: check if title already exists in folder
+    const finalTitle = await resolveTitle(token, title, apoFolderId);
 
-    // Extract link from response if available
-    let link = null;
-    try {
-      const resultContent = zapierData?.result?.content;
-      if (resultContent) {
-        const text = Array.isArray(resultContent) ? resultContent.map(c => c.text || '').join('') : JSON.stringify(resultContent);
-        const urlMatch = text.match(/https:\/\/docs\.google\.com\/[^\s"')]+/);
-        if (urlMatch) link = urlMatch[0];
-        if (!link) {
-          const driveMatch = text.match(/https:\/\/drive\.google\.com\/[^\s"')]+/);
-          if (driveMatch) link = driveMatch[0];
-        }
-      }
-    } catch (e) {
-      console.warn('[api/drive] Could not extract link:', e.message);
-    }
+    // Create the Google Doc from plain text via multipart upload
+    const fileId = await createGoogleDoc(token, finalTitle, content, apoFolderId);
 
-    return res.status(200).json({ success: true, title, link });
+    const link = `https://docs.google.com/document/d/${fileId}/edit`;
+    console.log(`[api/drive] Created doc: ${finalTitle} → ${fileId}`);
+    return res.status(200).json({ success: true, title: finalTitle, link, fileId });
 
   } catch (err) {
     console.error('[api/drive] Error:', err);
     return res.status(500).json({ error: err.message || 'Internal server error' });
   }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Find the APO folder the SA can see, or create one in the SA's drive. */
+async function findOrCreateApoFolder(token) {
+  const q = encodeURIComponent("name='APO' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+  const searchRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const searchData = await searchRes.json();
+
+  if (searchData.files && searchData.files.length > 0) {
+    return searchData.files[0].id;
+  }
+
+  // Create it (will be in the SA's drive — note: set APO_FOLDER_ID env var instead
+  // to place files in Stephanie's shared Drive folder)
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: 'APO',
+      mimeType: 'application/vnd.google-apps.folder'
+    })
+  });
+  const createData = await createRes.json();
+  if (!createData.id) throw new Error(`Failed to create APO folder: ${JSON.stringify(createData)}`);
+  return createData.id;
+}
+
+/**
+ * Check if a file with the same name already exists in the folder.
+ * If so, append a timestamp suffix to avoid collision.
+ */
+async function resolveTitle(token, title, folderId) {
+  const q = encodeURIComponent(`name='${title}' and '${folderId}' in parents and trashed=false`);
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+
+  if (data.files && data.files.length > 0) {
+    const ts = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    return `${title} (${ts})`;
+  }
+  return title;
+}
+
+/**
+ * Upload plain text content as a Google Doc using Drive multipart upload.
+ * The mimeType=application/vnd.google-apps.document triggers auto-conversion.
+ */
+async function createGoogleDoc(token, title, content, folderId) {
+  const boundary = 'drive_upload_boundary_314159';
+
+  const metadata = JSON.stringify({
+    name: title,
+    mimeType: 'application/vnd.google-apps.document',
+    parents: [folderId]
+  });
+
+  // Build multipart body manually (no FormData — keeps this dependency-free)
+  const body = [
+    `--${boundary}`,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    metadata,
+    `--${boundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    '',
+    content,
+    `--${boundary}--`
+  ].join('\r\n');
+
+  const uploadRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary="${boundary}"`
+      },
+      body
+    }
+  );
+
+  const uploadData = await uploadRes.json();
+
+  if (!uploadData.id) {
+    throw new Error(`Drive upload failed: ${JSON.stringify(uploadData)}`);
+  }
+
+  return uploadData.id;
 }
