@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supervisor Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #222222;
+      --accent: #c8a96e;
+      --secondary: #7eb8c8;
+      --danger: #c86e6e;
+      --success: #6ec88a;
+      --text: #e8e4dc;
+      --muted: #888888;
+      --border: #2a2a2a;
+      --font-title: 'Playfair Display', serif;
+      --font-mono: 'DM Mono', monospace;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .app-title {
+      font-family: var(--font-title);
+      font-size: 1.55rem;
+      color: var(--accent);
+      letter-spacing: 0.01em;
+    }
+
+    .gear-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .gear-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ── Compliance Banner ── */
+    .compliance-banner {
+      background: rgba(200, 110, 110, 0.08);
+      border: 1px solid rgba(200, 110, 110, 0.3);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 0.82rem;
+      color: #d4908a;
+      font-family: var(--font-mono);
+      margin: 16px 0 0 0;
+    }
+
+    /* ── Tab Nav ── */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      padding: 16px 28px 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 10px 18px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Main Layout ── */
+    .main-content {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 28px 60px;
+    }
+
+    /* ── Tab Panels ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Forms ── */
+    textarea, input[type="text"], select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+    textarea:focus, input[type="text"]:focus, select:focus {
+      border-color: var(--accent);
+    }
+    textarea::placeholder, input::placeholder { color: var(--muted); }
+
+    select option { background: var(--surface2); }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-primary { background: var(--accent); color: #0f0f0f; }
+    .btn-secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+    .btn-drive { background: transparent; border: 1px solid var(--secondary); color: var(--secondary); }
+    .btn-small { padding: 6px 12px; font-size: 0.7rem; }
+    .btn-danger-outline { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .badge-urgent { background: rgba(200,110,110,0.18); color: var(--danger); border: 1px solid rgba(200,110,110,0.3); }
+    .badge-today  { background: rgba(200,169,110,0.18); color: var(--accent); border: 1px solid rgba(200,169,110,0.3); }
+    .badge-monitor{ background: rgba(126,184,200,0.18); color: var(--secondary); border: 1px solid rgba(126,184,200,0.3); }
+    .badge-info   { background: rgba(110,200,138,0.18); color: var(--success); border: 1px solid rgba(110,200,138,0.3); }
+
+    /* Category badges for Staff Log */
+    .badge-cat { background: rgba(200,169,110,0.12); color: var(--accent); border: 1px solid rgba(200,169,110,0.2); }
+
+    /* ── Priority List ── */
+    .priority-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    /* ── Action Items ── */
+    .action-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .action-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+    .action-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      margin-top: 2px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .action-item.done span { text-decoration: line-through; color: var(--muted); }
+
+    /* ── Calendar Events ── */
+    .event-list { display: flex; flex-direction: column; gap: 10px; }
+    .event-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .event-info { flex: 1; }
+    .event-title { font-size: 0.9rem; font-weight: 500; }
+    .event-date  { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .event-notes { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Staff Log ── */
+    .log-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .filter-btn {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      transition: all 0.2s;
+    }
+    .filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent); }
+
+    .log-entry {
+      padding: 14px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .log-entry-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .log-initials {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .log-date {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    .log-text { font-size: 0.88rem; line-height: 1.55; color: var(--text); }
+
+    /* ── PSR Feedback ── */
+    .psr-overall {
+      padding: 14px 18px;
+      background: rgba(126,184,200,0.06);
+      border: 1px solid rgba(126,184,200,0.2);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .issue-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .issue-item {
+      padding: 14px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .issue-type {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--secondary);
+      margin-bottom: 6px;
+    }
+    .issue-problem { font-size: 0.88rem; color: var(--text); margin-bottom: 6px; }
+    .issue-fix {
+      font-size: 0.83rem;
+      color: var(--muted);
+      padding-left: 12px;
+      border-left: 2px solid var(--success);
+    }
+
+    .top-priority-section {
+      padding: 16px 18px;
+      background: rgba(200,169,110,0.06);
+      border: 1px solid rgba(200,169,110,0.2);
+      border-radius: 10px;
+      margin-top: 16px;
+    }
+    .top-priority-title {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    /* ── Summary Card ── */
+    .summary-text { font-size: 0.9rem; line-height: 1.65; color: var(--text); }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* ── Toast ── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .toast {
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      font-family: var(--font-body);
+      max-width: 340px;
+      animation: slideIn 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toast a { color: inherit; font-weight: 600; }
+    .toast-success { background: rgba(110,200,138,0.15); border: 1px solid rgba(110,200,138,0.3); color: var(--success); }
+    .toast-error   { background: rgba(200,110,110,0.15); border: 1px solid rgba(200,110,110,0.3); color: var(--danger); }
+    .toast-info    { background: rgba(126,184,200,0.15); border: 1px solid rgba(126,184,200,0.3); color: var(--secondary); }
+    @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 32px;
+      width: 100%;
+      max-width: 460px;
+    }
+    .modal-title {
+      font-family: var(--font-title);
+      font-size: 1.2rem;
+      color: var(--accent);
+      margin-bottom: 20px;
+    }
+    .modal-close {
+      float: right;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      margin-top: -4px;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .provider-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 14px;
+    }
+    .provider-active { background: rgba(110,200,138,0.15); border: 1px solid rgba(110,200,138,0.3); color: var(--success); }
+    .provider-none { background: rgba(136,136,136,0.1); border: 1px solid var(--border); color: var(--muted); }
+
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+    /* ── Misc ── */
+    .section-gap { margin-top: 20px; }
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    .results-area { margin-top: 24px; }
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 640px) { .results-grid { grid-template-columns: 1fr; } .input-row { grid-template-columns: 1fr; } }
+
+    .inline-link { color: var(--secondary); text-decoration: underline; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="app-title">Supervisor Command Center</div>
+  <button class="gear-btn" id="settingsBtn" title="Settings">⚙</button>
+</header>
+
+<!-- Tab Nav -->
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="inbox">📬 Inbox Triage</button>
+  <button class="tab-btn" data-tab="stafflog">📋 Staff Log</button>
+  <button class="tab-btn" data-tab="psr">📄 PSR Feedback</button>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+
+  <!-- ═══════════════════════════════ TAB 1: INBOX TRIAGE ═══════════════════════════════ -->
+  <div class="tab-panel active" id="tab-inbox">
+
+    <div class="compliance-banner">
+      ⚠️ Remove defendant names, case numbers, and confidential data before pasting anything.
+    </div>
+
+    <div class="card section-gap">
+      <div class="card-title">Paste Email or Note</div>
+      <textarea id="inboxInput" rows="8" placeholder="Paste any email or note here. Remove defendant names, case numbers, and case data first."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="analyzeBtn">
+          <span id="analyzeSpinner" class="spinner" style="display:none"></span>
+          Analyze &amp; Sort
+        </button>
+      </div>
+    </div>
+
+    <div id="inboxResults" class="results-area" style="display:none">
+      <div class="results-grid">
+        <!-- Priority Flags -->
+        <div class="card">
+          <div class="card-title">Priority Flags</div>
+          <div class="priority-list" id="priorityList"></div>
+        </div>
+        <!-- Summary -->
+        <div class="card">
+          <div class="card-title">Summary</div>
+          <div class="summary-text" id="summaryText"></div>
+        </div>
+      </div>
+
+      <!-- Action Items -->
+      <div class="card">
+        <div class="card-title">Action Items</div>
+        <ul class="action-list" id="actionList"></ul>
+      </div>
+
+      <!-- Calendar Events -->
+      <div class="card">
+        <div class="card-title">Calendar Events</div>
+        <div class="event-list" id="eventList"></div>
+      </div>
+
+      <!-- Export Row -->
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="bulkCalendarBtn">
+          <span id="calSpinner" class="spinner" style="display:none"></span>
+          📅 Add All to Calendar
+        </button>
+        <button class="btn btn-drive" id="inboxExportBtn">
+          <span id="inboxDriveSpinner" class="spinner" style="display:none"></span>
+          ☁ Export to Drive
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════ TAB 2: STAFF LOG ═══════════════════════════════ -->
+  <div class="tab-panel" id="tab-stafflog">
+
+    <div class="compliance-banner">
+      ⚠️ Remove defendant names, case numbers, and confidential data before pasting anything.
+    </div>
+
+    <div class="card section-gap">
+      <div class="card-title">New Log Entry</div>
+      <div class="input-row">
+        <div class="input-group">
+          <label for="officerInitials">Officer Initials</label>
+          <input type="text" id="officerInitials" maxlength="10" placeholder="e.g. J.S." />
+        </div>
+        <div class="input-group">
+          <label for="logCategory">Category</label>
+          <select id="logCategory">
+            <option value="Timeliness">Timeliness</option>
+            <option value="Report Quality">Report Quality</option>
+            <option value="Conduct">Conduct</option>
+            <option value="Positive Note">Positive Note</option>
+            <option value="Coaching Conversation">Coaching Conversation</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="input-group">
+        <label for="logNote">What Happened</label>
+        <textarea id="logNote" rows="5" placeholder="Describe what happened in plain language. No full names or case info."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="formatSaveBtn">
+          <span id="logSpinner" class="spinner" style="display:none"></span>
+          Format &amp; Save
+        </button>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Log Entries</span>
+        <button class="btn btn-drive btn-small" id="staffExportBtn">
+          <span id="staffDriveSpinner" class="spinner" style="display:none"></span>
+          ☁ Export to Drive
+        </button>
+      </div>
+      <div class="log-filters" id="logFilters">
+        <button class="filter-btn active" data-filter="all">All</button>
+      </div>
+      <div id="logEntries"></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════ TAB 3: PSR FEEDBACK ═══════════════════════════════ -->
+  <div class="tab-panel" id="tab-psr">
+
+    <div class="compliance-banner">
+      ⚠️ Remove defendant names, case numbers, and confidential data before pasting anything.
+    </div>
+
+    <div class="card section-gap">
+      <div class="card-title">Report Draft</div>
+      <textarea id="psrInput" rows="10" placeholder="Paste the report draft here. Replace defendant name with [DEFENDANT] and remove case numbers first."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="reviewBtn">
+          <span id="psrSpinner" class="spinner" style="display:none"></span>
+          Review Draft
+        </button>
+      </div>
+    </div>
+
+    <div id="psrResults" class="results-area" style="display:none">
+      <div class="card">
+        <div class="card-title">Overall Assessment</div>
+        <div class="psr-overall" id="psrOverall"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Issues Found</div>
+        <ol class="issue-list" id="issueList"></ol>
+      </div>
+      <div class="card top-priority-section" id="topPriorityCard">
+        <div class="top-priority-title">⭐ Top Priority Edits</div>
+        <div id="topPriorityList"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-drive" id="psrExportBtn">
+          <span id="psrDriveSpinner" class="spinner" style="display:none"></span>
+          ☁ Export to Drive
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ SETTINGS MODAL ═══════════════════════════════ -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-title">
+      Settings
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+
+    <div class="input-group" style="margin-bottom:14px">
+      <label for="providerSelect">AI Provider</label>
+      <select id="providerSelect">
+        <option value="anthropic">Anthropic (claude-3-5-haiku)</option>
+        <option value="openai">OpenAI (gpt-4o-mini)</option>
+      </select>
+    </div>
+
+    <div class="input-group" style="margin-bottom:14px">
+      <label for="apiKeyInput">API Key</label>
+      <input type="text" id="apiKeyInput" placeholder="Paste your API key here" />
+    </div>
+
+    <button class="btn btn-primary" id="saveSettingsBtn" style="width:100%">Save Settings</button>
+
+    <div id="providerStatusDisplay" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  UTILITY
+// ═══════════════════════════════════════════════════════
+
+function today() {
+  return new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+function todayISO() {
+  return new Date().toISOString().slice(0,10);
+}
+function timeStr() {
+  return new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
+}
+
+function showToast(msg, type='info', durationMs=5000) {
+  const tc = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.innerHTML = msg;
+  tc.appendChild(t);
+  setTimeout(() => t.remove(), durationMs);
+}
+
+function setLoading(spinnerId, btnId, loading) {
+  const sp = document.getElementById(spinnerId);
+  const btn = document.getElementById(btnId);
+  if (sp) sp.style.display = loading ? 'inline-block' : 'none';
+  if (btn) btn.disabled = loading;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════
+
+function getSettings() {
+  return {
+    apiKey: localStorage.getItem('scc_apiKey') || '',
+    provider: localStorage.getItem('scc_provider') || 'anthropic'
+  };
+}
+
+function renderProviderStatus() {
+  const { apiKey, provider } = getSettings();
+  const el = document.getElementById('providerStatusDisplay');
+  if (!el) return;
+  if (apiKey) {
+    const label = provider === 'anthropic' ? 'Anthropic Active' : 'OpenAI Active';
+    el.innerHTML = `<div class="provider-status provider-active"><span class="dot"></span>${label}</div>`;
+  } else {
+    el.innerHTML = `<div class="provider-status provider-none"><span class="dot"></span>No Key Set</div>`;
+  }
+}
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  const { apiKey, provider } = getSettings();
+  document.getElementById('apiKeyInput').value = apiKey;
+  document.getElementById('providerSelect').value = provider;
+  renderProviderStatus();
+  document.getElementById('settingsModal').classList.add('open');
+});
+
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('settingsModal').classList.remove('open');
+});
+document.getElementById('settingsModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('settingsModal')) {
+    document.getElementById('settingsModal').classList.remove('open');
+  }
+});
+
+document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  const prov = document.getElementById('providerSelect').value;
+  localStorage.setItem('scc_apiKey', key);
+  localStorage.setItem('scc_provider', prov);
+  renderProviderStatus();
+  showToast('Settings saved.', 'success');
+  setTimeout(() => document.getElementById('settingsModal').classList.remove('open'), 800);
+});
+
+// ═══════════════════════════════════════════════════════
+//  TAB NAVIGATION
+// ═══════════════════════════════════════════════════════
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+//  API CALL HELPERS
+// ═══════════════════════════════════════════════════════
+
+async function callAI(prompt, systemPrompt) {
+  const { apiKey, provider } = getSettings();
+  if (!apiKey) {
+    showToast('⚠️ Please set your AI API key in Settings first.', 'error');
+    throw new Error('No API key');
+  }
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, systemPrompt, apiKey, provider })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `AI error ${res.status}`);
+  }
+  const data = await res.json();
+  return data.text;
+}
+
+async function callDrive(title, content, folderId = '1P-vYMRPUGXXGQH-yAyZvRnCuFbUbAtz0') {
+  const res = await fetch('/api/drive', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, content, folderId })
+  });
+  if (!res.ok) throw new Error(`Drive error ${res.status}`);
+  return res.json();
+}
+
+async function callCalendar(title, date, description) {
+  const res = await fetch('/api/calendar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, date, description })
+  });
+  if (!res.ok) throw new Error(`Calendar error ${res.status}`);
+  return res.json();
+}
+
+// ═══════════════════════════════════════════════════════
+//  TAB 1: INBOX TRIAGE
+// ═══════════════════════════════════════════════════════
+
+let currentTriageData = null;
+
+const INBOX_SYSTEM = `You are an efficient assistant helping a probation officer supervisor organize and prioritize inbox items. 
+Analyze the provided content and return ONLY valid JSON with this exact structure:
+{
+  "priorities": [{"label": "string", "flag": "URGENT|TODAY|MONITOR|INFO"}],
+  "actions": ["string", "string"],
+  "events": [{"title": "string", "date": "string", "notes": "string"}],
+  "summary": "2-3 sentence summary"
+}
+- priorities: extract each key task or item with appropriate urgency flag
+- actions: concrete steps the supervisor should take
+- events: any deadlines, meetings, or scheduled items (date as readable string like "Monday, April 28")
+- summary: brief overview of what this content covers
+Return ONLY the JSON object, no markdown, no explanation.`;
+
+document.getElementById('analyzeBtn').addEventListener('click', async () => {
+  const input = document.getElementById('inboxInput').value.trim();
+  if (!input) { showToast('Please paste some content first.', 'error'); return; }
+
+  setLoading('analyzeSpinner', 'analyzeBtn', true);
+  try {
+    const raw = await callAI(input, INBOX_SYSTEM);
+    // strip potential markdown code block
+    const jsonStr = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+    const data = JSON.parse(jsonStr);
+    currentTriageData = data;
+    renderTriageResults(data);
+  } catch(e) {
+    showToast(`Error: ${e.message}`, 'error');
+    console.error(e);
+  } finally {
+    setLoading('analyzeSpinner', 'analyzeBtn', false);
+  }
+});
+
+function flagBadgeClass(flag) {
+  return { URGENT:'badge-urgent', TODAY:'badge-today', MONITOR:'badge-monitor', INFO:'badge-info' }[flag] || 'badge-info';
+}
+
+function renderTriageResults(data) {
+  // Priorities
+  const pl = document.getElementById('priorityList');
+  pl.innerHTML = '';
+  (data.priorities || []).forEach(p => {
+    const b = document.createElement('div');
+    b.className = `badge ${flagBadgeClass(p.flag)}`;
+    b.textContent = `${p.flag}: ${p.label}`;
+    pl.appendChild(b);
+  });
+
+  // Summary
+  document.getElementById('summaryText').textContent = data.summary || '';
+
+  // Actions
+  const al = document.getElementById('actionList');
+  al.innerHTML = '';
+  (data.actions || []).forEach(a => {
+    const li = document.createElement('li');
+    li.className = 'action-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.addEventListener('change', () => li.classList.toggle('done', cb.checked));
+    const sp = document.createElement('span');
+    sp.textContent = a;
+    li.appendChild(cb);
+    li.appendChild(sp);
+    al.appendChild(li);
+  });
+
+  // Events
+  const el = document.getElementById('eventList');
+  el.innerHTML = '';
+  if ((data.events || []).length === 0) {
+    el.innerHTML = '<div class="empty-state">No calendar events detected.</div>';
+  } else {
+    data.events.forEach((ev, i) => {
+      const item = document.createElement('div');
+      item.className = 'event-item';
+      item.innerHTML = `
+        <div class="event-info">
+          <div class="event-title">${ev.title}</div>
+          <div class="event-date">${ev.date}</div>
+          ${ev.notes ? `<div class="event-notes">${ev.notes}</div>` : ''}
+        </div>
+        <button class="btn btn-secondary btn-small add-cal-btn" data-index="${i}">
+          <span class="spinner single-cal-spinner-${i}" style="display:none"></span>
+          📅 Add
+        </button>`;
+      el.appendChild(item);
+    });
+
+    document.querySelectorAll('.add-cal-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const i = btn.dataset.index;
+        const ev = data.events[i];
+        btn.disabled = true;
+        const sp = document.querySelector(`.single-cal-spinner-${i}`);
+        if (sp) sp.style.display = 'inline-block';
+        try {
+          await callCalendar(ev.title, ev.date, ev.notes || '');
+          showToast(`📅 "${ev.title}" added to calendar.`, 'success');
+          btn.textContent = '✓ Added';
+          btn.style.color = 'var(--success)';
+          btn.style.borderColor = 'var(--success)';
+        } catch(e) {
+          showToast(`Calendar error: ${e.message}`, 'error');
+          btn.disabled = false;
+        } finally {
+          if (sp) sp.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  document.getElementById('inboxResults').style.display = 'block';
+}
+
+// Bulk calendar
+document.getElementById('bulkCalendarBtn').addEventListener('click', async () => {
+  if (!currentTriageData?.events?.length) { showToast('No events to add.', 'error'); return; }
+  setLoading('calSpinner', 'bulkCalendarBtn', true);
+  let added = 0;
+  for (const ev of currentTriageData.events) {
+    try {
+      await callCalendar(ev.title, ev.date, ev.notes || '');
+      added++;
+    } catch(e) { console.error(e); }
+  }
+  setLoading('calSpinner', 'bulkCalendarBtn', false);
+  showToast(`📅 Added ${added} event(s) to calendar.`, 'success');
+});
+
+// Inbox export
+document.getElementById('inboxExportBtn').addEventListener('click', async () => {
+  if (!currentTriageData) { showToast('No triage data to export.', 'error'); return; }
+  setLoading('inboxDriveSpinner', 'inboxExportBtn', true);
+  const content = formatTriageForDrive(currentTriageData);
+  const title = `${today()} — Inbox Triage`;
+  try {
+    const result = await callDrive(title, content);
+    const link = result.link ? `<a href="${result.link}" target="_blank">${result.link}</a>` : '';
+    showToast(`☁ Saved: ${title}${link ? ' — ' + link : ''}`, 'success', 8000);
+  } catch(e) {
+    showToast(`Drive error: ${e.message}`, 'error');
+  } finally {
+    setLoading('inboxDriveSpinner', 'inboxExportBtn', false);
+  }
+});
+
+function formatTriageForDrive(data) {
+  let out = `INBOX TRIAGE — ${today()}\n${'═'.repeat(50)}\n\n`;
+  out += `SUMMARY\n${data.summary}\n\n`;
+  out += `PRIORITY FLAGS\n`;
+  (data.priorities||[]).forEach(p => { out += `  [${p.flag}] ${p.label}\n`; });
+  out += `\nACTION ITEMS\n`;
+  (data.actions||[]).forEach((a,i) => { out += `  ${i+1}. ${a}\n`; });
+  out += `\nCALENDAR EVENTS\n`;
+  (data.events||[]).forEach(e => { out += `  • ${e.title} — ${e.date}${e.notes ? ` (${e.notes})` : ''}\n`; });
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TAB 2: STAFF LOG
+// ═══════════════════════════════════════════════════════
+
+function loadLog() {
+  return JSON.parse(localStorage.getItem('scc_log') || '[]');
+}
+function saveLog(entries) {
+  localStorage.setItem('scc_log', JSON.stringify(entries));
+}
+
+let currentFilter = 'all';
+
+function renderLog() {
+  const entries = loadLog();
+  const container = document.getElementById('logEntries');
+  const filters = document.getElementById('logFilters');
+
+  // Rebuild filter buttons
+  const initials = [...new Set(entries.map(e => e.initials))];
+  filters.innerHTML = `<button class="filter-btn ${currentFilter==='all'?'active':''}" data-filter="all">All</button>`;
+  initials.forEach(ini => {
+    const active = currentFilter === ini ? 'active' : '';
+    filters.innerHTML += `<button class="filter-btn ${active}" data-filter="${ini}">${ini}</button>`;
+  });
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.addEventListener('click', () => { currentFilter = b.dataset.filter; renderLog(); });
+  });
+
+  const filtered = currentFilter === 'all' ? entries : entries.filter(e => e.initials === currentFilter);
+  container.innerHTML = '';
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state">No log entries yet.</div>';
+    return;
+  }
+  filtered.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    div.innerHTML = `
+      <div class="log-entry-header">
+        <span class="log-initials">${e.initials}</span>
+        <span class="badge badge-cat">${e.category}</span>
+        <span class="log-date">${e.date}</span>
+      </div>
+      <div class="log-text">${e.text}</div>`;
+    container.appendChild(div);
+  });
+}
+
+const LOG_SYSTEM = `You are a professional assistant helping a probation supervisor maintain formal staff logs.
+Rewrite the provided note as a professional, neutral, past-tense log entry (2-4 sentences).
+Use formal language. Do not include names — only initials are acceptable. No case information.
+Return ONLY the formatted log entry text, no quotes, no explanation.`;
+
+document.getElementById('formatSaveBtn').addEventListener('click', async () => {
+  const initials = document.getElementById('officerInitials').value.trim().toUpperCase();
+  const category = document.getElementById('logCategory').value;
+  const note = document.getElementById('logNote').value.trim();
+
+  if (!initials) { showToast('Please enter officer initials.', 'error'); return; }
+  if (!note) { showToast('Please describe what happened.', 'error'); return; }
+
+  setLoading('logSpinner', 'formatSaveBtn', true);
+  try {
+    const formatted = await callAI(
+      `Officer: ${initials}\nCategory: ${category}\n\nNote: ${note}`,
+      LOG_SYSTEM
+    );
+    const entries = loadLog();
+    entries.unshift({
+      id: Date.now(),
+      initials,
+      category,
+      date: todayISO(),
+      text: formatted.trim()
+    });
+    saveLog(entries);
+    renderLog();
+    document.getElementById('logNote').value = '';
+    document.getElementById('officerInitials').value = '';
+    showToast('Log entry saved.', 'success');
+  } catch(e) {
+    showToast(`Error: ${e.message}`, 'error');
+  } finally {
+    setLoading('logSpinner', 'formatSaveBtn', false);
+  }
+});
+
+// Staff log export
+document.getElementById('staffExportBtn').addEventListener('click', async () => {
+  const entries = loadLog();
+  if (!entries.length) { showToast('No log entries to export.', 'error'); return; }
+  setLoading('staffDriveSpinner', 'staffExportBtn', true);
+  const content = formatLogForDrive(entries);
+  const title = `${today()} — Staff Log`;
+  try {
+    const result = await callDrive(title, content);
+    const link = result.link ? `<a href="${result.link}" target="_blank">${result.link}</a>` : '';
+    showToast(`☁ Saved: ${title}${link ? ' — ' + link : ''}`, 'success', 8000);
+  } catch(e) {
+    showToast(`Drive error: ${e.message}`, 'error');
+  } finally {
+    setLoading('staffDriveSpinner', 'staffExportBtn', false);
+  }
+});
+
+function formatLogForDrive(entries) {
+  let out = `STAFF LOG — ${today()}\n${'═'.repeat(50)}\n\n`;
+  const byOfficer = {};
+  entries.forEach(e => {
+    if (!byOfficer[e.initials]) byOfficer[e.initials] = [];
+    byOfficer[e.initials].push(e);
+  });
+  for (const [ini, recs] of Object.entries(byOfficer)) {
+    out += `OFFICER: ${ini}\n${'─'.repeat(30)}\n`;
+    recs.forEach(r => { out += `[${r.date}] [${r.category}]\n${r.text}\n\n`; });
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TAB 3: PSR FEEDBACK
+// ═══════════════════════════════════════════════════════
+
+let currentPSRData = null;
+
+const PSR_SYSTEM = `You are an expert reviewer of Pre-Sentence Reports (PSRs) for federal probation.
+Analyze the provided report draft and return ONLY valid JSON with this exact structure:
+{
+  "overall": "2-3 sentence overall assessment of the draft quality",
+  "issues": [
+    {
+      "type": "Issue Type",
+      "problem": "What is wrong",
+      "fix": "How to fix it"
+    }
+  ],
+  "topPriority": ["Most critical fix 1", "Most critical fix 2", "Most critical fix 3"]
+}
+Check for these issue types: Passive Voice, Scope Creep, Vague/Unsupported Claims, Missing Standard Elements, Tone Problems, Wordiness/Redundancy, Unclear Statements.
+Be specific and actionable. Return ONLY the JSON object, no markdown, no explanation.`;
+
+document.getElementById('reviewBtn').addEventListener('click', async () => {
+  const input = document.getElementById('psrInput').value.trim();
+  if (!input) { showToast('Please paste a report draft first.', 'error'); return; }
+
+  setLoading('psrSpinner', 'reviewBtn', true);
+  try {
+    const raw = await callAI(input, PSR_SYSTEM);
+    const jsonStr = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+    const data = JSON.parse(jsonStr);
+    currentPSRData = data;
+    renderPSRResults(data);
+  } catch(e) {
+    showToast(`Error: ${e.message}`, 'error');
+    console.error(e);
+  } finally {
+    setLoading('psrSpinner', 'reviewBtn', false);
+  }
+});
+
+function renderPSRResults(data) {
+  document.getElementById('psrOverall').textContent = data.overall || '';
+
+  const il = document.getElementById('issueList');
+  il.innerHTML = '';
+  (data.issues || []).forEach((issue, i) => {
+    const li = document.createElement('li');
+    li.className = 'issue-item';
+    li.innerHTML = `
+      <div class="issue-type">${i+1}. ${issue.type}</div>
+      <div class="issue-problem">${issue.problem}</div>
+      <div class="issue-fix">→ ${issue.fix}</div>`;
+    il.appendChild(li);
+  });
+
+  const tp = document.getElementById('topPriorityList');
+  tp.innerHTML = '';
+  (data.topPriority || []).forEach((item, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;font-size:0.88rem;';
+    div.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--accent);min-width:20px;margin-top:2px">${i+1}.</span><span>${item}</span>`;
+    tp.appendChild(div);
+  });
+
+  document.getElementById('psrResults').style.display = 'block';
+}
+
+// PSR export
+document.getElementById('psrExportBtn').addEventListener('click', async () => {
+  if (!currentPSRData) { showToast('No PSR feedback to export.', 'error'); return; }
+  setLoading('psrDriveSpinner', 'psrExportBtn', true);
+  const content = formatPSRForDrive(currentPSRData);
+  const title = `${today()} — PSR Review`;
+  try {
+    const result = await callDrive(title, content);
+    const link = result.link ? `<a href="${result.link}" target="_blank">${result.link}</a>` : '';
+    showToast(`☁ Saved: ${title}${link ? ' — ' + link : ''}`, 'success', 8000);
+  } catch(e) {
+    showToast(`Drive error: ${e.message}`, 'error');
+  } finally {
+    setLoading('psrDriveSpinner', 'psrExportBtn', false);
+  }
+});
+
+function formatPSRForDrive(data) {
+  let out = `PSR REVIEW — ${today()}\n${'═'.repeat(50)}\n\n`;
+  out += `OVERALL ASSESSMENT\n${data.overall}\n\n`;
+  out += `ISSUES FOUND\n`;
+  (data.issues||[]).forEach((issue,i) => {
+    out += `\n${i+1}. ${issue.type}\n   Problem: ${issue.problem}\n   Fix: ${issue.fix}\n`;
+  });
+  out += `\nTOP PRIORITY EDITS\n`;
+  (data.topPriority||[]).forEach((item,i) => { out += `  ${i+1}. ${item}\n`; });
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+renderLog();
+</script>
+</body>
+</html>
