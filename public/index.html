@@ -539,8 +539,7 @@
       <!-- Export Row -->
       <div class="btn-row">
         <button class="btn btn-secondary" id="bulkCalendarBtn">
-          <span id="calSpinner" class="spinner" style="display:none"></span>
-          📅 Add All to Calendar
+          📋 Copy Events for Harper
         </button>
         <button class="btn btn-drive" id="inboxExportBtn">
           <span id="inboxDriveSpinner" class="spinner" style="display:none"></span>
@@ -807,7 +806,8 @@ async function callDrive(title, content, folderId = '1P-vYMRPUGXXGQH-yAyZvRnCuFb
   return res.json();
 }
 
-async function callCalendar(title, date, description) {
+async function callCalendar_DISABLED(title, date, description) {
+  // Calendar API removed — Harper adds events directly via Telegram
   const res = await fetch('/api/calendar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -906,32 +906,24 @@ function renderTriageResults(data) {
           <div class="event-date">${ev.date}</div>
           ${ev.notes ? `<div class="event-notes">${ev.notes}</div>` : ''}
         </div>
-        <button class="btn btn-secondary btn-small add-cal-btn" data-index="${i}">
-          <span class="spinner single-cal-spinner-${i}" style="display:none"></span>
-          📅 Add
+        <button class="btn btn-secondary btn-small add-cal-btn" data-index="${i}" title="Copy to send to Harper">
+          📋 Copy
         </button>`;
       el.appendChild(item);
     });
 
     document.querySelectorAll('.add-cal-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', () => {
         const i = btn.dataset.index;
         const ev = data.events[i];
-        btn.disabled = true;
-        const sp = document.querySelector(`.single-cal-spinner-${i}`);
-        if (sp) sp.style.display = 'inline-block';
-        try {
-          await callCalendar(ev.title, ev.date, ev.notes || '');
-          showToast(`📅 "${ev.title}" added to calendar.`, 'success');
-          btn.textContent = '✓ Added';
+        const msg = `Please add to my calendar: "${ev.title}" on ${ev.date} at 9:00 AM${ev.notes ? ' — ' + ev.notes : ''}`;
+        navigator.clipboard.writeText(msg).then(() => {
+          showToast('📋 Copied — paste it to Harper!', 'success');
+          btn.textContent = '✓ Copied';
           btn.style.color = 'var(--success)';
           btn.style.borderColor = 'var(--success)';
-        } catch(e) {
-          showToast(`Calendar error: ${e.message}`, 'error');
-          btn.disabled = false;
-        } finally {
-          if (sp) sp.style.display = 'none';
-        }
+          setTimeout(() => { btn.textContent = '📋 Copy'; btn.style.color = ''; btn.style.borderColor = ''; }, 2500);
+        });
       });
     });
   }
@@ -939,19 +931,16 @@ function renderTriageResults(data) {
   document.getElementById('inboxResults').style.display = 'block';
 }
 
-// Bulk calendar
-document.getElementById('bulkCalendarBtn').addEventListener('click', async () => {
-  if (!currentTriageData?.events?.length) { showToast('No events to add.', 'error'); return; }
-  setLoading('calSpinner', 'bulkCalendarBtn', true);
-  let added = 0;
-  for (const ev of currentTriageData.events) {
-    try {
-      await callCalendar(ev.title, ev.date, ev.notes || '');
-      added++;
-    } catch(e) { console.error(e); }
-  }
-  setLoading('calSpinner', 'bulkCalendarBtn', false);
-  showToast(`📅 Added ${added} event(s) to calendar.`, 'success');
+// Bulk calendar → copy all events for Harper
+document.getElementById('bulkCalendarBtn').addEventListener('click', () => {
+  if (!currentTriageData?.events?.length) { showToast('No events detected.', 'error'); return; }
+  const lines = currentTriageData.events.map(ev =>
+    `• "${ev.title}" on ${ev.date} at 9:00 AM${ev.notes ? ' — ' + ev.notes : ''}`
+  );
+  const msg = `Please add these to my calendar:\n${lines.join('\n')}`;
+  navigator.clipboard.writeText(msg).then(() => {
+    showToast('📋 All events copied — paste to Harper!', 'success');
+  });
 });
 
 // Inbox export
